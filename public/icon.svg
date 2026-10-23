@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <!-- Outer subtle tech ring -->
+  <circle cx="256" cy="256" r="210" stroke="#0ea5e9" stroke-width="4" stroke-opacity="0.3" stroke-dasharray="16 8"/>
+  <rect x="76" y="76" width="140" height="140" rx="20" stroke="#38bdf8" stroke-width="16" fill="#0369a1" fill-opacity="0.15"/>
+  <rect x="116" y="116" width="60" height="60" rx="8" fill="#38bdf8"/>
+  <rect x="296" y="76" width="140" height="140" rx="20" stroke="#38bdf8" stroke-width="16" fill="#0369a1" fill-opacity="0.15"/>
+  <rect x="336" y="116" width="60" height="60" rx="8" fill="#38bdf8"/>
+  <rect x="76" y="296" width="140" height="140" rx="20" stroke="#38bdf8" stroke-width="16" fill="#0369a1" fill-opacity="0.15"/>
+  <rect x="116" y="336" width="60" height="60" rx="8" fill="#38bdf8"/>
+  <!-- Center Shield / Checkmark for authentication -->
+  <path d="M256 220 L350 250 V330 C350 380 256 420 256 420 C256 420 162 380 162 330 V250 Z" fill="#0284c7" fill-opacity="0.25" stroke="#10b981" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M216 324 L244 352 L304 290" stroke="#10b981" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Micro tech dots -->
+  <circle cx="256" cy="116" r="12" fill="#38bdf8"/>
+  <circle cx="256" cy="156" r="12" fill="#38bdf8"/>
+  <circle cx="296" cy="256" r="12" fill="#38bdf8"/>
+  <circle cx="400" cy="296" r="12" fill="#38bdf8"/>
+  <circle cx="420" cy="380" r="12" fill="#38bdf8"/>
+  <circle cx="340" cy="400" r="12" fill="#38bdf8"/>
+</svg>
