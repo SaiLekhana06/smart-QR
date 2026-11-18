@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "SmartQR - Product Authentication System",
+  "short_name": "SmartQR",
+  "description": "ESP32-compatible tamper-proof product verification system with live QR scanner and offline local database.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "SmartQR - Product Authentication System",
+  "description": "ESP32-compatible tamper-proof product verification system with live QR scanner, offline local dataset database, exact field comparison, scan history, and engineering project test harness.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

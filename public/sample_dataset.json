@@ -1,0 +1,26 @@
+[
+  {
+    "productName": "Smart Battery",
+    "productId": "SB001",
+    "manufacturer": "ABC Electronics",
+    "batchNumber": "B001",
+    "registeredAt": "2026-10-01T08:00:00.000Z",
+    "notes": "Primary reference lithium battery pack - authorized batch."
+  },
+  {
+    "productName": "Smart Sensor",
+    "productId": "SS002",
+    "manufacturer": "XYZ Electronics",
+    "batchNumber": "B002",
+    "registeredAt": "2026-10-05T09:30:00.000Z",
+    "notes": "Industrial IoT environmental telemetry sensor."
+  },
+  {
+    "productName": "Smart Controller",
+    "productId": "SC003",
+    "manufacturer": "Tech Solutions",
+    "batchNumber": "B003",
+    "registeredAt": "2026-10-10T14:15:00.000Z",
+    "notes": "ARM Cortex embedded telemetry master controller."
+  }
+]
