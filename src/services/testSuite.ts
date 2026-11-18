@@ -1,7 +1,7 @@
 import { ProductRecord, TestCaseResult } from '../types';
 import { verifyAgainstList } from './verificationEngine';
 import { parseQrPayload } from './qrParser';
-import { localDb, INITIAL_SAMPLE_PRODUCTS } from './db';
+import { localDb } from './db';
 
 export async function runAllVerificationTests(): Promise<TestCaseResult[]> {
   const results: TestCaseResult[] = [];
@@ -27,154 +27,163 @@ export async function runAllVerificationTests(): Promise<TestCaseResult[]> {
     }
   ];
 
-  // Test 1: All fields matching -> Genuine
+  // Test 1: Plain Product ID QR + matching Batch Number -> Genuine
   {
     const start = performance.now();
-    const payload = 'Product: Smart Battery; ID: SB001; Manufacturer: ABC Electronics; Batch: B001';
-    const res = verifyAgainstList(payload, testDb);
-    const passed = res.status === 'GENUINE' && res.mismatchedFields.length === 0;
+    const payload = 'SB001';
+    const res = verifyAgainstList(payload, testDb, 'B001');
+    const passed = res.status === 'GENUINE' && res.registeredRecord === null;
     results.push({
       id: 'TC-01',
-      name: 'All Fields Matching',
-      description: 'Scanned payload matches all 4 fields of authorized product SB001.',
+      name: 'Product ID Only QR + Matching Batch',
+      description: 'QR contains only Product ID "SB001" and entered batch "B001" matches registry without exposing product details.',
       expectedStatus: 'GENUINE',
       actualStatus: res.status,
       passed,
-      inputPayload: payload,
-      details: passed ? 'Verified as GENUINE with 0 mismatches.' : `Failed: Got ${res.status}`,
+      inputPayload: `${payload} (Batch: B001)`,
+      details: passed
+        ? 'Verified as GENUINE PRODUCT with complete product details hidden.'
+        : `Failed: Got ${res.status}`,
       durationMs: +(performance.now() - start).toFixed(2)
     });
   }
 
-  // Test 2: Product ID not registered -> Unregistered
+  // Test 2: Product ID not registered -> "This product is not developed by us"
   {
     const start = performance.now();
-    const payload = 'Product: Smart Drone; ID: SD999; Manufacturer: ABC Electronics; Batch: B001';
-    const res = verifyAgainstList(payload, testDb);
-    const passed = res.status === 'UNREGISTERED';
+    const payload = 'SD999';
+    const res = verifyAgainstList(payload, testDb, 'B001');
+    const passed =
+      res.status === 'UNREGISTERED' &&
+      res.title === 'This product is not developed by us';
     results.push({
       id: 'TC-02',
-      name: 'Product ID Not Registered',
-      description: 'Scanned product ID SD999 does not exist in the authorized registry.',
+      name: 'Unregistered Product ID',
+      description: 'Scanned product ID SD999 does not exist in registered products.',
       expectedStatus: 'UNREGISTERED',
       actualStatus: res.status,
       passed,
       inputPayload: payload,
-      details: passed ? 'Correctly flagged as UNREGISTERED PRODUCT.' : `Failed: Got ${res.status}`,
+      details: passed
+        ? 'Correctly displayed "This product is not developed by us".'
+        : `Failed: Got ${res.status} (${res.title})`,
       durationMs: +(performance.now() - start).toFixed(2)
     });
   }
 
-  // Test 3: Product Name mismatching -> Invalid (Fake)
+  // Test 3: Key-Value "ID: SB001" QR format + matching Batch -> Genuine
   {
     const start = performance.now();
-    const payload = 'Product: Counterfeit Battery; ID: SB001; Manufacturer: ABC Electronics; Batch: B001';
-    const res = verifyAgainstList(payload, testDb);
-    const passed = res.status === 'FAKE_MISMATCH' && res.mismatchedFields.includes('Product Name');
+    const payload = 'ID: SB001';
+    const res = verifyAgainstList(payload, testDb, 'B001');
+    const passed = res.status === 'GENUINE' && res.scanned.productId === 'SB001';
     results.push({
       id: 'TC-03',
-      name: 'Product Name Mismatch',
-      description: 'Scanned ID SB001 has tampered product name "Counterfeit Battery".',
-      expectedStatus: 'FAKE_MISMATCH',
+      name: 'Key-Value Product ID Format',
+      description: 'QR formatted as "ID: SB001" parses Product ID and verifies matching batch B001.',
+      expectedStatus: 'GENUINE',
       actualStatus: res.status,
       passed,
-      inputPayload: payload,
-      details: passed ? `Flagged as FAKE_MISMATCH: ${res.mismatchedFields.join(', ')}` : `Failed: Got ${res.status}`,
+      inputPayload: `${payload} (Batch: B001)`,
+      details: passed ? 'Extracted SB001 and verified GENUINE.' : `Failed: Got ${res.status}`,
       durationMs: +(performance.now() - start).toFixed(2)
     });
   }
 
-  // Test 4: Manufacturer mismatching -> Invalid (Fake)
+  // Test 4: JSON '{"productId": "SS002"}' QR format + matching Batch -> Genuine
   {
     const start = performance.now();
-    const payload = 'Product: Smart Battery; ID: SB001; Manufacturer: Rogue Corp; Batch: B001';
-    const res = verifyAgainstList(payload, testDb);
-    const passed = res.status === 'FAKE_MISMATCH' && res.mismatchedFields.includes('Manufacturer');
+    const payload = '{"productId": "SS002"}';
+    const res = verifyAgainstList(payload, testDb, 'B002');
+    const passed = res.status === 'GENUINE' && res.scanned.productId === 'SS002';
     results.push({
       id: 'TC-04',
-      name: 'Manufacturer Mismatch',
-      description: 'Scanned ID SB001 has unauthorized manufacturer "Rogue Corp".',
-      expectedStatus: 'FAKE_MISMATCH',
+      name: 'JSON Product ID Format',
+      description: 'JSON QR payload containing only productId SS002 verifies with batch B002.',
+      expectedStatus: 'GENUINE',
       actualStatus: res.status,
       passed,
-      inputPayload: payload,
-      details: passed ? `Flagged as FAKE_MISMATCH: ${res.mismatchedFields.join(', ')}` : `Failed: Got ${res.status}`,
+      inputPayload: `${payload} (Batch: B002)`,
+      details: passed ? 'Extracted SS002 and verified GENUINE.' : `Failed: Got ${res.status}`,
       durationMs: +(performance.now() - start).toFixed(2)
     });
   }
 
-  // Test 5: Batch number mismatching -> Invalid (Fake)
+  // Test 5: Batch number mismatch -> Fake Product
   {
     const start = performance.now();
-    const payload = 'Product: Smart Battery; ID: SB001; Manufacturer: ABC Electronics; Batch: B999_TAMPERED';
-    const res = verifyAgainstList(payload, testDb);
-    const passed = res.status === 'FAKE_MISMATCH' && res.mismatchedFields.includes('Batch Number');
+    const payload = 'SB001';
+    const res = verifyAgainstList(payload, testDb, 'B999_TAMPERED');
+    const passed = res.status === 'FAKE_MISMATCH' && res.registeredRecord === null;
     results.push({
       id: 'TC-05',
-      name: 'Batch Number Mismatch',
-      description: 'Scanned ID SB001 has non-matching batch "B999_TAMPERED".',
+      name: 'Batch Number Mismatch (Fake Product)',
+      description: 'Product ID SB001 matches, but entered batch "B999_TAMPERED" fails verification.',
       expectedStatus: 'FAKE_MISMATCH',
       actualStatus: res.status,
       passed,
-      inputPayload: payload,
-      details: passed ? `Flagged as FAKE_MISMATCH: ${res.mismatchedFields.join(', ')}` : `Failed: Got ${res.status}`,
+      inputPayload: `${payload} (Batch: B999_TAMPERED)`,
+      details: passed
+        ? 'Flagged as FAKE PRODUCT with no product details revealed.'
+        : `Failed: Got ${res.status}`,
       durationMs: +(performance.now() - start).toFixed(2)
     });
   }
 
-  // Test 6: Multiple field mismatches -> Invalid (Fake)
+  // Test 6: Case-sensitive batch enforcement -> Fake Product
   {
     const start = performance.now();
-    const payload = 'Product: Bogus Battery; ID: SB001; Manufacturer: Fake Ltd; Batch: B888';
-    const res = verifyAgainstList(payload, testDb);
-    const passed = res.status === 'FAKE_MISMATCH' && res.mismatchedFields.length === 3;
+    const payload = 'SB001';
+    const res = verifyAgainstList(payload, testDb, 'b001');
+    const passed = res.status === 'FAKE_MISMATCH';
     results.push({
       id: 'TC-06',
-      name: 'Multiple Field Mismatches',
-      description: 'Scanned ID SB001 has name, manufacturer, and batch mismatches.',
+      name: 'Case-Sensitive Batch Enforcement',
+      description: 'Lowercase "b001" does not match registered batch "B001".',
       expectedStatus: 'FAKE_MISMATCH',
       actualStatus: res.status,
       passed,
-      inputPayload: payload,
-      details: passed ? `All 3 fields flagged: ${res.mismatchedFields.join(', ')}` : `Failed: Got ${res.status}`,
+      inputPayload: `${payload} (Batch: b001)`,
+      details: passed ? 'Enforced exact case-sensitive batch match.' : `Failed: Got ${res.status}`,
       durationMs: +(performance.now() - start).toFixed(2)
     });
   }
 
-  // Test 7: Missing batch number -> Invalid QR
+  // Test 7: Empty QR payload -> Invalid QR
   {
     const start = performance.now();
-    const payload = 'Product: Smart Battery; ID: SB001; Manufacturer: ABC Electronics';
-    const res = verifyAgainstList(payload, testDb);
-    const passed = res.status === 'INVALID_QR' && res.mismatchedFields.includes('Batch Number');
+    const payload = '   ';
+    const parseRes = parseQrPayload(payload);
+    const res = verifyAgainstList(payload, testDb, 'B001');
+    const passed = !parseRes.success && res.status === 'INVALID_QR';
     results.push({
       id: 'TC-07',
-      name: 'Missing Batch Number Field',
-      description: 'QR payload omits required "Batch" token.',
+      name: 'Empty QR Payload Rejection',
+      description: 'Empty or whitespace-only QR payload is safely rejected as INVALID_QR.',
       expectedStatus: 'INVALID_QR',
       actualStatus: res.status,
       passed,
-      inputPayload: payload,
-      details: passed ? 'Correctly rejected as INVALID_QR due to missing required batch number.' : `Failed: Got ${res.status}`,
+      inputPayload: '(empty)',
+      details: passed ? 'Correctly rejected empty QR payload.' : `Failed: Got ${res.status}`,
       durationMs: +(performance.now() - start).toFixed(2)
     });
   }
 
-  // Test 8: Malformed text -> Invalid QR
+  // Test 8: Malformed unstructured text -> Invalid QR
   {
     const start = performance.now();
-    const payload = 'RANDOM_GARBAGE_PAYLOAD_NOT_ESP32_FORMAT_XYZ_123';
-    const res = verifyAgainstList(payload, testDb);
+    const payload = 'RANDOM GARBAGE PAYLOAD NOT AN ID';
+    const res = verifyAgainstList(payload, testDb, 'B001');
     const passed = res.status === 'INVALID_QR';
     results.push({
       id: 'TC-08',
       name: 'Malformed Unstructured Text',
-      description: 'QR text does not match delimiter format or key-value pattern.',
+      description: 'QR text containing spaces/unstructured text is rejected without crashing.',
       expectedStatus: 'INVALID_QR',
       actualStatus: res.status,
       passed,
       inputPayload: payload,
-      details: passed ? 'Correctly rejected without crashing.' : `Failed: Got ${res.status}`,
+      details: passed ? 'Correctly rejected as INVALID_QR.' : `Failed: Got ${res.status}`,
       durationMs: +(performance.now() - start).toFixed(2)
     });
   }
@@ -191,18 +200,20 @@ export async function runAllVerificationTests(): Promise<TestCaseResult[]> {
         batchNumber: 'B001-ALT'
       }
     ];
-    const payload = 'Product: Smart Battery; ID: SB001; Manufacturer: ABC Electronics; Batch: B001';
-    const res = verifyAgainstList(payload, conflictingDb);
+    const payload = 'SB001';
+    const res = verifyAgainstList(payload, conflictingDb, 'B001');
     const passed = res.status === 'AMBIGUOUS_RECORD';
     results.push({
       id: 'TC-09',
-      name: 'Database Duplicate Conflict (Case E)',
+      name: 'Database Duplicate Conflict',
       description: 'Dataset contains two conflicting records with same product ID SB001.',
       expectedStatus: 'AMBIGUOUS_RECORD',
       actualStatus: res.status,
       passed,
       inputPayload: payload,
-      details: passed ? 'Refused arbitrary selection and raised AMBIGUOUS_RECORD error.' : `Failed: Got ${res.status}`,
+      details: passed
+        ? 'Refused arbitrary selection and raised AMBIGUOUS_RECORD error.'
+        : `Failed: Got ${res.status}`,
       durationMs: +(performance.now() - start).toFixed(2)
     });
   }
@@ -211,8 +222,8 @@ export async function runAllVerificationTests(): Promise<TestCaseResult[]> {
   {
     const start = performance.now();
     const emptyDb: ProductRecord[] = [];
-    const payload = 'Product: Smart Battery; ID: SB001; Manufacturer: ABC Electronics; Batch: B001';
-    const res = verifyAgainstList(payload, emptyDb);
+    const payload = 'SB001';
+    const res = verifyAgainstList(payload, emptyDb, 'B001');
     const passed = res.status === 'UNREGISTERED';
     results.push({
       id: 'TC-10',
@@ -240,11 +251,13 @@ export async function runAllVerificationTests(): Promise<TestCaseResult[]> {
       id: 'TC-11',
       name: 'Malformed JSON Import Rejection',
       description: 'Importing corrupt JSON payload throws safe validation error.',
-      expectedStatus: 'INVALID_QR', // proxy status for display
+      expectedStatus: 'INVALID_QR',
       actualStatus: caughtError ? 'INVALID_QR' : 'GENUINE',
       passed: caughtError,
       inputPayload: '{ bad_json_not_array: true ',
-      details: caughtError ? 'JSON parser safely caught corrupted syntax.' : 'Failed: accepted bad JSON without error.',
+      details: caughtError
+        ? 'JSON parser safely caught corrupted syntax.'
+        : 'Failed: accepted bad JSON without error.',
       durationMs: +(performance.now() - start).toFixed(2)
     });
   }
@@ -267,7 +280,9 @@ export async function runAllVerificationTests(): Promise<TestCaseResult[]> {
       actualStatus: persistenceOk ? 'GENUINE' : 'FAKE_MISMATCH',
       passed: persistenceOk,
       inputPayload: 'IndexedDB: SmartQrLocalDb / products',
-      details: persistenceOk ? 'Local persistent database queried successfully.' : 'Failed to query local database.',
+      details: persistenceOk
+        ? 'Local persistent database queried successfully.'
+        : 'Failed to query local database.',
       durationMs: +(performance.now() - start).toFixed(2)
     });
   }

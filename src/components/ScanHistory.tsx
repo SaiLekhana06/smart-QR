@@ -47,12 +47,26 @@ export const ScanHistory: React.FC<ScanHistoryProps> = ({
 
     return (
       item.productId.toLowerCase().includes(q) ||
-      item.productName.toLowerCase().includes(q) ||
-      item.manufacturer.toLowerCase().includes(q) ||
-      item.batchNumber.toLowerCase().includes(q) ||
+      item.status.toLowerCase().includes(q) ||
       item.rawText.toLowerCase().includes(q)
     );
   });
+
+  // Compute total scan count per Product ID
+  const scanCountByProductId = history.reduce<Record<string, number>>((acc, item) => {
+    const idKey = (item.productId || '').trim();
+    if (idKey && idKey !== 'UNKNOWN_ID') {
+      acc[idKey] = (acc[idKey] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
+  const formatStatusLabel = (status: VerificationStatus) => {
+    if (status === 'GENUINE') return 'GENUINE PRODUCT';
+    if (status === 'FAKE_MISMATCH') return 'FAKE PRODUCT';
+    if (status === 'UNREGISTERED') return 'NOT DEVELOPED BY US';
+    return status.replace('_', ' ');
+  };
 
   return (
     <div className="space-y-6">
@@ -104,7 +118,7 @@ export const ScanHistory: React.FC<ScanHistoryProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by Product ID, Name, Manufacturer, or Batch..."
+            placeholder="Search by Product ID or status..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
           />
         </div>
@@ -140,12 +154,10 @@ export const ScanHistory: React.FC<ScanHistoryProps> = ({
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-950/80 text-slate-400 border-b border-slate-800">
-                  <th className="py-3 px-4 font-semibold">Timestamp</th>
+                  <th className="py-3 px-4 font-semibold">Date &amp; Time</th>
                   <th className="py-3 px-4 font-semibold">Verification Result</th>
                   <th className="py-3 px-4 font-semibold">Product ID</th>
-                  <th className="py-3 px-4 font-semibold">Product Name</th>
-                  <th className="py-3 px-4 font-semibold">Manufacturer</th>
-                  <th className="py-3 px-4 font-semibold">Batch</th>
+                  <th className="py-3 px-4 font-semibold">QR Scan Count</th>
                   <th className="py-3 px-4 font-semibold text-right">Details</th>
                 </tr>
               </thead>
@@ -154,6 +166,7 @@ export const ScanHistory: React.FC<ScanHistoryProps> = ({
                   const isGen = item.status === 'GENUINE';
                   const isFake = item.status === 'FAKE_MISMATCH';
                   const isUnreg = item.status === 'UNREGISTERED';
+                  const qrCount = scanCountByProductId[(item.productId || '').trim()] || 1;
 
                   return (
                     <tr
@@ -178,20 +191,16 @@ export const ScanHistory: React.FC<ScanHistoryProps> = ({
                           {isGen && <ShieldCheck className="w-3.5 h-3.5" />}
                           {isFake && <ShieldX className="w-3.5 h-3.5" />}
                           {isUnreg && <ShieldAlert className="w-3.5 h-3.5" />}
-                          <span>{item.status.replace('_', ' ')}</span>
+                          <span>{formatStatusLabel(item.status)}</span>
                         </span>
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-cyan-300">
                         {item.productId || 'N/A'}
                       </td>
-                      <td className="py-3 px-4 font-semibold text-white">
-                        {item.productName || '—'}
-                      </td>
-                      <td className="py-3 px-4 text-slate-300">
-                        {item.manufacturer || '—'}
-                      </td>
                       <td className="py-3 px-4 font-mono text-slate-300">
-                        {item.batchNumber || '—'}
+                        <span className={qrCount > 1 ? 'text-amber-300 font-bold' : ''}>
+                          {qrCount} {qrCount === 1 ? 'time' : 'times'}
+                        </span>
                       </td>
                       <td className="py-3 px-4 text-right">
                         <button
@@ -250,29 +259,36 @@ export const ScanHistory: React.FC<ScanHistoryProps> = ({
                   className={`font-bold px-2.5 py-0.5 rounded-full text-[11px] ${
                     selectedEntry.status === 'GENUINE'
                       ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                      : selectedEntry.status === 'UNREGISTERED'
+                      ? 'bg-amber-950 text-amber-300 border border-amber-800'
                       : 'bg-rose-950 text-rose-300 border border-rose-800'
                   }`}
                 >
-                  {selectedEntry.status.replace('_', ' ')}
+                  {formatStatusLabel(selectedEntry.status)}
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
                 <span className="text-slate-400 text-[10px] uppercase tracking-wider block">
-                  Scanned Product Parameters:
+                  QR Scan Summary:
                 </span>
-                <p><strong>Name:</strong> {selectedEntry.productName || '—'}</p>
-                <p><strong>ID:</strong> <span className="font-mono text-cyan-300">{selectedEntry.productId || '—'}</span></p>
-                <p><strong>Manufacturer:</strong> {selectedEntry.manufacturer || '—'}</p>
-                <p><strong>Batch:</strong> <span className="font-mono">{selectedEntry.batchNumber || '—'}</span></p>
+                <p>
+                  <strong>Product ID:</strong>{' '}
+                  <span className="font-mono text-cyan-300">{selectedEntry.productId || '—'}</span>
+                </p>
+                <p>
+                  <strong>Total Scans for This ID:</strong>{' '}
+                  <span className="font-mono text-slate-200">
+                    {scanCountByProductId[(selectedEntry.productId || '').trim()] || 1}
+                  </span>
+                </p>
+                {typeof selectedEntry.attemptsUsed === 'number' && (
+                  <p>
+                    <strong>Batch Attempts Used:</strong>{' '}
+                    <span className="font-mono text-slate-200">{selectedEntry.attemptsUsed} / 3</span>
+                  </p>
+                )}
               </div>
-
-              {selectedEntry.mismatchedFields.length > 0 && (
-                <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 space-y-1">
-                  <strong>Mismatched Fields:</strong>
-                  <p>{selectedEntry.mismatchedFields.join(', ')}</p>
-                </div>
-              )}
 
               <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                 <span className="text-slate-400 text-[10px] uppercase tracking-wider block">
@@ -284,7 +300,7 @@ export const ScanHistory: React.FC<ScanHistoryProps> = ({
               </div>
 
               <div className="text-[11px] text-slate-400">
-                Timestamp: <span className="font-mono">{new Date(selectedEntry.timestamp).toLocaleString()}</span>
+                Date &amp; Time: <span className="font-mono">{new Date(selectedEntry.timestamp).toLocaleString()}</span>
               </div>
             </div>
 

@@ -5,14 +5,10 @@ import {
   Play,
   RefreshCw,
   Sparkles,
-  ShieldCheck,
-  Cpu,
-  Clock,
-  Layers,
-  FileCheck
+  Layers
 } from 'lucide-react';
 import { TestCaseResult } from '../types';
-import { runAllVerificationTests } from '../services/testSuite';
+import { api } from '../services/api';
 
 interface TestSuiteViewProps {
   initialTests?: TestCaseResult[];
@@ -22,13 +18,17 @@ export const TestSuiteView: React.FC<TestSuiteViewProps> = () => {
   const [tests, setTests] = useState<TestCaseResult[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [hasRun, setHasRun] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const executeSuite = async () => {
     setIsRunning(true);
+    setError(null);
     try {
-      const results = await runAllVerificationTests();
+      const results = await api.runBackendTestSuite();
       setTests(results);
       setHasRun(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Test suite execution failed.');
     } finally {
       setIsRunning(false);
     }
@@ -39,7 +39,6 @@ export const TestSuiteView: React.FC<TestSuiteViewProps> = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div>
           <div className="flex items-center gap-2">
@@ -47,7 +46,7 @@ export const TestSuiteView: React.FC<TestSuiteViewProps> = () => {
             <h2 className="text-xl font-bold text-white">Engineering Project Test Harness</h2>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Deterministic verification test suite validating Section 14 & 16 criteria for B.Tech project defense.
+            Live isolated end-to-end backend test suite validating two-stage QR+Batch verification, 3-attempt lockout, refresh persistence, duplicate detection, RBAC, and ESP32 job queue safety.
           </p>
         </div>
 
@@ -59,18 +58,23 @@ export const TestSuiteView: React.FC<TestSuiteViewProps> = () => {
           {isRunning ? (
             <>
               <RefreshCw className="w-4 h-4 animate-spin" />
-              <span>Executing Test Suite...</span>
+              <span>Executing Backend Suite...</span>
             </>
           ) : (
             <>
               <Play className="w-4 h-4 fill-current" />
-              <span>Run All 12 Test Cases</span>
+              <span>Run All 16 Test Cases</span>
             </>
           )}
         </button>
       </div>
 
-      {/* Summary Scorecard */}
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-950/50 border border-rose-800 text-xs text-rose-300">
+          {error}
+        </div>
+      )}
+
       {hasRun && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
@@ -105,7 +109,6 @@ export const TestSuiteView: React.FC<TestSuiteViewProps> = () => {
         </div>
       )}
 
-      {/* Test Cases Table */}
       {hasRun ? (
         <div className="space-y-3">
           {tests.map((test) => (
@@ -127,10 +130,8 @@ export const TestSuiteView: React.FC<TestSuiteViewProps> = () => {
                     )}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-cyan-400">
-                        {test.id}
-                      </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-bold text-cyan-400">{test.id}</span>
                       <h3 className="text-sm font-bold text-white">{test.name}</h3>
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
@@ -156,7 +157,6 @@ export const TestSuiteView: React.FC<TestSuiteViewProps> = () => {
                 </div>
               </div>
 
-              {/* Payload & Details Accordion / Subbox */}
               <div className="mt-3 pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                 <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono text-[11px] text-slate-300 break-all select-all">
                   <span className="text-slate-400 block text-[10px] font-sans font-semibold mb-0.5">
@@ -180,7 +180,7 @@ export const TestSuiteView: React.FC<TestSuiteViewProps> = () => {
           <div className="space-y-1">
             <h3 className="text-base font-bold text-white">Automated Acceptance Test Harness</h3>
             <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-              Click the button above to execute all 12 mandatory engineering test cases against the live verification engine, parsing routines, and persistent storage layer.
+              Click the button above to execute all 16 real HTTP & SQLite integration tests against the isolated backend engine without modifying live product metrics.
             </p>
           </div>
           <button

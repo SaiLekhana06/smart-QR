@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ProductRecord, ScanHistoryEntry, DatasetStats, VerificationResult } from './types';
-import { localDb, INITIAL_SAMPLE_PRODUCTS } from './services/db';
-import { verifyProductPayload } from './services/verificationEngine';
+import { localDb } from './services/db';
+import {
+  checkQrProductId,
+  verifyBatchNumberForProduct
+} from './services/verificationEngine';
 import { Navigation, ActiveTab } from './components/Navigation';
 import { Dashboard } from './components/Dashboard';
 import { Scanner } from './components/Scanner';
+import { BatchChallengeModal } from './components/BatchChallengeModal';
 import { VerificationResultModal } from './components/VerificationResultModal';
 import { ProductDatabase } from './components/ProductDatabase';
 import { ProductRegistration } from './components/ProductRegistration';
@@ -29,6 +33,10 @@ export default function App() {
     lastScanTimestamp: null
   });
   const [activeResult, setActiveResult] = useState<VerificationResult | null>(null);
+  const [pendingBatchChallenge, setPendingBatchChallenge] = useState<{
+    productId: string;
+    rawQrPayload: string;
+  } | null>(null);
   const [prefilledRegister, setPrefilledRegister] = useState<Partial<ProductRecord> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -61,31 +69,85 @@ export default function App() {
     }
   }, [refreshData]);
 
-  // Execute verification on a scanned QR payload
+  // Execute Step 1 verification on a scanned QR payload (Product ID only)
   const handleScanSuccess = async (rawPayload: string) => {
     try {
-      const result = await verifyProductPayload(rawPayload);
-      setActiveResult(result);
+      const checkRes = await checkQrProductId(rawPayload);
 
-      // Save deliberate scan into local audit log
+      if (checkRes.stage === 'NEEDS_BATCH') {
+        setPendingBatchChallenge({
+          productId: checkRes.productId,
+          rawQrPayload: checkRes.rawQrPayload
+        });
+        return;
+      }
+
+      const result = checkRes.result;
       const historyEntry: ScanHistoryEntry = {
         id: result.id,
         timestamp: result.timestamp,
         rawText: rawPayload,
-        productName: result.scanned.productName || 'Unknown Product',
+        productName: '',
         productId: result.scanned.productId || 'UNKNOWN_ID',
-        manufacturer: result.scanned.manufacturer || 'Unknown',
-        batchNumber: result.scanned.batchNumber || 'Unknown',
+        manufacturer: '',
+        batchNumber: '',
         status: result.status,
-        mismatchedFields: result.mismatchedFields,
-        registeredProductId: result.registeredRecord?.productId
+        mismatchedFields: result.mismatchedFields
       };
 
       await localDb.addHistoryEntry(historyEntry);
       await refreshData();
+      setActiveResult(result);
     } catch (err) {
       console.error('Verification error:', err);
     }
+  };
+
+  // Execute Step 2 batch number verification (up to 3 chances)
+  const handleBatchChallengeSubmit = async (
+    batchNumber: string,
+    attemptNumber: number
+  ): Promise<boolean> => {
+    if (!pendingBatchChallenge) return false;
+
+    const { productId, rawQrPayload } = pendingBatchChallenge;
+    const verification = await verifyBatchNumberForProduct(
+      rawQrPayload,
+      productId,
+      batchNumber,
+      attemptNumber
+    );
+
+    if (!verification.result) {
+      return false;
+    }
+
+    setPendingBatchChallenge(null);
+
+    const historyEntry: ScanHistoryEntry = {
+      id: verification.result.id,
+      timestamp: verification.result.timestamp,
+      rawText: rawQrPayload,
+      productName: '',
+      productId: verification.result.scanned.productId || productId,
+      manufacturer: '',
+      batchNumber: '',
+      status: verification.result.status,
+      mismatchedFields: verification.result.mismatchedFields,
+      attemptsUsed: verification.result.attemptsUsed
+    };
+
+    await localDb.addHistoryEntry(historyEntry);
+    const qrScanHistory = await localDb.getHistoryByProductId(productId);
+    await refreshData();
+
+    setActiveResult({
+      ...verification.result,
+      qrScanHistory,
+      qrScanCount: qrScanHistory.length
+    });
+
+    return verification.matched;
   };
 
   // Reset to default 3 sample products
@@ -249,6 +311,15 @@ export default function App() {
         )}
       </main>
 
+      {/* Batch Number Challenge Modal (3 Chances) */}
+      {pendingBatchChallenge && (
+        <BatchChallengeModal
+          productId={pendingBatchChallenge.productId}
+          onSubmitBatch={handleBatchChallengeSubmit}
+          onCancel={() => setPendingBatchChallenge(null)}
+        />
+      )}
+
       {/* Verification Result Modal / Screen */}
       {activeResult && (
         <VerificationResultModal
@@ -257,10 +328,6 @@ export default function App() {
           onScanAnother={() => {
             setActiveResult(null);
             setActiveTab('scanner');
-          }}
-          onRegisterUnregistered={(prefill) => {
-            setPrefilledRegister(prefill);
-            setActiveTab('register');
           }}
         />
       )}

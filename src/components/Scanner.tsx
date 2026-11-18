@@ -65,12 +65,15 @@ export const Scanner: React.FC<ScannerProps> = ({ onScanSuccess, onCancel }) => 
         .stop()
         .then(() => {
           setIsScanning(false);
+          setIsProcessing(false);
           onScanSuccess(decodedText);
         })
         .catch(() => {
+          setIsProcessing(false);
           onScanSuccess(decodedText);
         });
     } else {
+      setIsProcessing(false);
       onScanSuccess(decodedText);
     }
   };
@@ -343,84 +346,68 @@ export const Scanner: React.FC<ScannerProps> = ({ onScanSuccess, onCancel }) => 
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            Demo Test Payloads (ESP32 Raw Format)
+            Demo Test Payloads (Product ID Only QR Format)
           </h3>
-          <span className="text-[10px] text-slate-400">Section 6 & 14 Compliance</span>
+          <span className="text-[10px] text-slate-400">Batch Prompt Verification</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           <button
-            onClick={() =>
-              handleDecoded(
-                'Product: Smart Battery; ID: SB001; Manufacturer: ABC Electronics; Batch: B001'
-              )
-            }
+            onClick={() => handleDecoded('SB001')}
             className="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-emerald-900/60 text-left transition flex items-center justify-between group"
           >
             <div>
-              <span className="font-bold text-emerald-400 block">Genuine SB001</span>
-              <span className="text-[10px] text-slate-400 truncate block">All 4 fields match registry</span>
+              <span className="font-bold text-emerald-400 block">Registered ID: SB001</span>
+              <span className="text-[10px] text-slate-400 truncate block">Prompts for Batch Number (3 chances)</span>
             </div>
             <CheckCircle2 className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform" />
           </button>
 
           <button
-            onClick={() =>
-              handleDecoded(
-                'Product: Counterfeit Battery; ID: SB001; Manufacturer: ABC Electronics; Batch: B001'
-              )
-            }
-            className="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-rose-900/60 text-left transition flex items-center justify-between group"
+            onClick={() => handleDecoded('SS002')}
+            className="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-cyan-900/60 text-left transition flex items-center justify-between group"
           >
             <div>
-              <span className="font-bold text-rose-400 block">Tampered Name</span>
-              <span className="text-[10px] text-slate-400 truncate block">"Counterfeit Battery" vs SB001</span>
+              <span className="font-bold text-cyan-400 block">Registered ID: SS002</span>
+              <span className="text-[10px] text-slate-400 truncate block">Prompts for Batch Number (3 chances)</span>
             </div>
-            <ShieldAlert className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
+            <CheckCircle2 className="w-4 h-4 text-cyan-500 group-hover:scale-110 transition-transform" />
           </button>
 
           <button
-            onClick={() =>
-              handleDecoded(
-                'Product: Smart Battery; ID: SB001; Manufacturer: ABC Electronics; Batch: B999_TAMPERED'
-              )
-            }
-            className="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-rose-900/60 text-left transition flex items-center justify-between group"
-          >
-            <div>
-              <span className="font-bold text-rose-400 block">Tampered Batch</span>
-              <span className="text-[10px] text-slate-400 truncate block">B999_TAMPERED mismatch</span>
-            </div>
-            <ShieldAlert className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
-          </button>
-
-          <button
-            onClick={() =>
-              handleDecoded(
-                'Product: Smart Drone; ID: SD999; Manufacturer: ABC Electronics; Batch: B001'
-              )
-            }
+            onClick={() => handleDecoded('SD999')}
             className="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-amber-900/60 text-left transition flex items-center justify-between group"
           >
             <div>
-              <span className="font-bold text-amber-400 block">Unregistered ID</span>
-              <span className="text-[10px] text-slate-400 truncate block">SD999 not in local database</span>
+              <span className="font-bold text-amber-400 block">Unregistered ID: SD999</span>
+              <span className="text-[10px] text-slate-400 truncate block">Shows "This product is not developed by us"</span>
             </div>
             <HelpCircle className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+          </button>
+
+          <button
+            onClick={() => handleDecoded('INVALID QR PAYLOAD')}
+            className="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-850 border border-rose-900/60 text-left transition flex items-center justify-between group"
+          >
+            <div>
+              <span className="font-bold text-rose-400 block">Malformed QR Payload</span>
+              <span className="text-[10px] text-slate-400 truncate block">Rejected as INVALID QR CODE</span>
+            </div>
+            <ShieldAlert className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
           </button>
         </div>
 
         {/* Raw payload input */}
         <div className="pt-2 border-t border-slate-800 space-y-2">
           <label className="text-[11px] font-semibold text-slate-400 block">
-            Or Paste Custom ESP32 QR Payload String:
+            Or Enter / Paste Product ID QR Payload:
           </label>
           <div className="flex gap-2">
             <input
               type="text"
               value={manualInput}
               onChange={(e) => setManualInput(e.target.value)}
-              placeholder="Product: Smart Battery; ID: SB001; Manufacturer: ABC Electronics; Batch: B001"
+              placeholder="e.g. SB001"
               className="flex-1 px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-700 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 font-mono"
             />
             <button

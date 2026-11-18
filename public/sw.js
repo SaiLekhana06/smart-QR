@@ -1,5 +1,5 @@
 // Service Worker for SmartQR Offline Capabilities
-const CACHE_NAME = 'smartqr-cache-v1';
+const CACHE_NAME = 'smartqr-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -31,8 +31,10 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
+  // Only handle GET requests and never cache backend /api/ endpoints
   if (event.request.method !== 'GET') return;
+  const reqUrl = new URL(event.request.url);
+  if (reqUrl.pathname.startsWith('/api/')) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {

@@ -44,6 +44,9 @@ export interface VerificationResult {
   fieldComparisons: FieldComparison[];
   mismatchedFields: string[];
   parseErrors?: string[];
+  qrScanHistory?: ScanHistoryEntry[];
+  qrScanCount?: number;
+  attemptsUsed?: number;
 }
 
 export interface ScanHistoryEntry {
@@ -58,6 +61,7 @@ export interface ScanHistoryEntry {
   mismatchedFields: string[];
   registeredProductId?: string;
   notes?: string;
+  attemptsUsed?: number;
 }
 
 export interface DatasetStats {
@@ -73,12 +77,7 @@ export interface DatasetStats {
 
 export interface ParseResult {
   success: boolean;
-  product?: {
-    productName: string;
-    productId: string;
-    manufacturer: string;
-    batchNumber: string;
-  };
+  productId?: string;
   missingFields: string[];
   rawText: string;
   error?: string;

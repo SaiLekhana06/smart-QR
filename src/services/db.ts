@@ -288,6 +288,12 @@ class SmartQrDatabase {
     });
   }
 
+  async getHistoryByProductId(productId: string): Promise<ScanHistoryEntry[]> {
+    const normalizedId = productId.trim();
+    const all = await this.getAllHistory();
+    return all.filter((entry) => (entry.productId || '').trim() === normalizedId);
+  }
+
   async addHistoryEntry(entry: ScanHistoryEntry): Promise<void> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
